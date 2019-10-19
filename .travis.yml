@@ -1,0 +1,9 @@
+language: python
+python: "3.6"
+install:
+    - pip3 install tox-travis flask flask-login tox flask-wtf BeautifulSoup4 bs4 flask-mysql
+
+script:
+		- flask run &
+		- tox 
+	
