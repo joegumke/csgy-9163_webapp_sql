@@ -1,0 +1,18 @@
+{% from "_formhelpers.html" import render_field %}
+<p>REGISTRATION FORM</p>
+<a href="http://localhost:5000/home">HOME</a> 
+<a href="http://localhost:5000/login">LOGIN</a> 
+<a href="http://localhost:5000/spell_check">SPELL_CHECK</a>
+<a href="http://localhost:5000/register">REGISTER</a>
+<form method=post>
+  <dl>
+    {{ render_field(form.uname) }}
+    {{ render_field(form.pword) }}
+    {{ render_field(form.mfa) }}
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+    <div id=result>{{error}}
+</div>
+  </dl>
+  <p><input type=submit value=Register>
+</form>
+
