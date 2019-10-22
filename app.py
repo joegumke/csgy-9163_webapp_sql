@@ -1,14 +1,19 @@
 #app.py -- contains basics of python code. to start web service. 
+#pip3 install flask-sqlalchemy
+#pip3 install flask-bcrypt
+#pip3 install flask-user
 
 from flask import Flask, request, redirect,render_template, session
+from flask_bcrypt import Bcrypt
 from flask_login import LoginManager, current_user, login_user
 from wtforms import Form, BooleanField, StringField, PasswordField, validators, TextAreaField, IntegerField, HiddenField
 from flask_wtf import CSRFProtect
 import subprocess
 from datetime import *
-
+from flask_user import roles_required,UserManager
 from flask_sqlalchemy import SQLAlchemy
-#pip3 install flask-sqlalchemy
+#from flask_user import current_user, login_required, roles_required, UserManager, UserMixin
+
 
 app = Flask(__name__)
 login_manager = LoginManager()
@@ -16,21 +21,22 @@ login_manager.init_app(app)
 app.secret_key = '1234567891234567893242341230498120348719035192038471902873491283510981834712039847124123940812903752903847129038471290835710289675413864310867135'
 csrf = CSRFProtect()
 csrf.init_app(app)
+bcrypt = Bcrypt(app)
 
-userDict = dict()
-result = ''
-
+# Define SQLite3 DB
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///site.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+#app.config['USER_EMAIL_SENDER_EMAIL'] = "noreply@example.com"
 db = SQLAlchemy(app)
 
+# Define the SQLite Tables
 class userTable(db.Model):
     username = db.Column(db.String(20), unique=True,nullable=False,primary_key=True)
     password = db.Column(db.String(60),nullable=False)
     multiFactor = db.Column(db.String(11),nullable=False)
-
+    accessRole = db.Column(db.String(50),unique=True)
     def __repr__(self):
-        return f"userTable('{self.username}','{self.password}','{self.multiFactor}')"
+        return f"userTable('{self.username}','{self.password}','{self.multiFactor}','{self.accessRole}')"
 
 class userHistory(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey(userTable.username), nullable=False, primary_key=True)
@@ -40,19 +46,32 @@ class userHistory(db.Model):
     def __repr__(self):
         return f"userHistory('{self.userLoggedIn}','{self.userLoggedOut}')"
 
+class Role(db.Model):
+    id = db.Column(db.Integer(),primary_key=True)
+    name = db.Column(db.String(50),unique=True)
+
+# Define Classes for input forms
 class RegistrationForm(Form):
-    uname = StringField('Username', [validators.DataRequired(message="Enter UserName"),validators.Length(min=6, max=20)])
+    uname = StringField('Username', [validators.DataRequired(message="Enter UserName"),validators.Length(min=4, max=20)])
     pword = PasswordField('Password', [validators.DataRequired(message="Enter Password"),validators.Length(min=6, max=20)])
     mfa = StringField('2FA', [validators.DataRequired(message="Enter 10 Digit Phone Number"),validators.Length(min=11,max=11,message="Enter 11 Digit Phone Number")], id='2fa')
 
 class wordForm(Form):
     textbox = TextAreaField('textbox', [validators.DataRequired(message="Enter Words to Check"),validators.Length(max=20000)], id='inputtext')
     
-# Purging DB in case there is pre-existing DB setup from prior runs
-db.drop_all()
+#user_manager = UserManager(app,db,userTable)
 
-# Creating DB 
+
+# Purging DB in case there is pre-existing DB setup from prior runs && building new
+db.drop_all()
 db.create_all()
+
+# Add in the Administrator User
+adminToAdd = userTable(username='admin',password= bcrypt.generate_password_hash('administrator').decode('utf-8'),multiFactor='12345678901',accessRole='admin')
+#adminToAdd.accessRole.Append(Role(name='admin'))
+db.session.add(adminToAdd)
+db.session.commit()
+
 
 # 3 forms with each function for processing (register & login & spellinput)
 @app.route('/')
@@ -66,29 +85,21 @@ def register():
     if request.method == 'POST' and registrationform.validate():
         uname = (registrationform.uname.data)
         pword = (registrationform.pword.data)
+        hashed_password = bcrypt.generate_password_hash(pword).decode('utf-8')
         mfa = (registrationform.mfa.data)
-        try: 
-            dbUserCheck = userTable.query.filter_by(username=('%s' % uname)).first()
-        except AttributeError:
-            userToAdd = userTable(username=uname, password=pword ,multiFactor=mfa)
+        if userTable.query.filter_by(username=('%s' % uname)).first() == None:
+            userToAdd = userTable(username=uname, password=hashed_password,multiFactor=mfa)
             db.session.add(userToAdd)
             db.session.commit()
             print('User Successfully Registered')
             error="success"
             return render_template('register.html', form=registrationform, error=error)
-        try:
+        else:
+            dbUserCheck = userTable.query.filter_by(username=('%s' % uname)).first()
             if uname == dbUserCheck.username:
                 print('User Already Exists')
                 error='failure'
                 return render_template('register.html', form=registrationform, error=error)
-        except AttributeError:
-                userToAdd = userTable(username=uname, password=pword ,multiFactor=mfa)
-                db.session.add(userToAdd)
-                db.session.commit()
-                print('User Successfully Registered')
-                error="success"
-                return render_template('register.html', form=registrationform, error=error)
-
     else:
         error=''
         return render_template('register.html', form=registrationform, error=error)
@@ -102,10 +113,10 @@ def login():
         uname = (loginform.uname.data)
         pword = (loginform.pword.data)
         mfa = (loginform.mfa.data)
+
         try:
-            dbUserCheck = userTable.query.filter_by(username=('%s' % uname)).first()
-            
-            if uname == dbUserCheck.username and pword == dbUserCheck.password and mfa == dbUserCheck.multiFactor:
+            dbUserCheck = userTable.query.filter_by(username=('%s' % uname)).first()     
+            if uname == dbUserCheck.username and bcrypt.check_password_hash(dbUserCheck.password,pword) and mfa == dbUserCheck.multiFactor:
                 session['logged_in'] = True
                 error="Successful Authentication"
                 return render_template('login.html', form=loginform,error=error)
@@ -117,8 +128,12 @@ def login():
                 error='Two-Factor'
                 return render_template('login.html', form=loginform,error=error)  
         except AttributeError:
-            error='Incorrect'
+            error='Incorrect - AttributeError'
             return render_template('login.html', form=loginform,error=error)
+
+    if request.method == 'POST' and loginform.validate() and session.get('logged_in'): 
+        error='Already Logged In...Please Log Out'
+        return render_template('login.html', form=loginform,error=error)  
 
     else:
         error=''
@@ -136,13 +151,20 @@ def home():
         session.pop('logged_in', None)
         return render_template('home.html', error=error)
 
-    if session.get('logged_in') and request.method =='POST' and request.form['submit_button'] =='Spell Checker':
-        error='Successful Request to Spell Checker'
-        return render_template('home.html', error=error)
-
     else:
         error='Please Login'
         return render_template('home.html', error=error)
+        
+# Page for the Admin to retrieve login history of users 
+@app.route('/login_history', methods=['GET'])
+def login_history():
+    if session.get('logged_in') and request.method =='GET':
+        error = 'Authenticated User '
+        return render_template('history.html', error=error)
+    
+    else:
+        error='Please Login'
+        return render_template('history.html', error=error)
 
 # Text Submission && Result Retrieval 
 @app.route('/spell_check', methods=['POST','GET'])
