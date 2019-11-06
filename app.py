@@ -72,7 +72,7 @@ db.drop_all()
 db.create_all()
 
 # Add in the Administrator User
-adminToAdd = userTable(username='admin',password= bcrypt.generate_password_hash('administrator').decode('utf-8'),multiFactor='12345678901',accessRole='admin')
+adminToAdd = userTable(username='admin',password= bcrypt.generate_password_hash('Administrator@1').decode('utf-8'),multiFactor='12345678901',accessRole='admin')
 db.session.add(adminToAdd)
 db.session.commit()
 
