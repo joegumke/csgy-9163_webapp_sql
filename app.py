@@ -12,6 +12,7 @@ import subprocess
 from datetime import * 
 from flask_user import roles_required,UserManager
 from flask_sqlalchemy import SQLAlchemy
+from flask_login import UserMixin
 
 app = Flask(__name__)
 login_manager = LoginManager()
@@ -27,14 +28,22 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
 # Define the SQLite Tables
-class userTable(db.Model):
-    username = db.Column(db.String(20), unique=True,nullable=False,primary_key=True)
+class userTable(db.Model,UserMixin):
+    user_id = db.Column(db.Integer(),unique=True,nullable=False,primary_key=True)
+    username = db.Column(db.String(20), unique=True,nullable=False)
     password = db.Column(db.String(60),nullable=False)
     multiFactor = db.Column(db.String(11),nullable=False)
     registered_on = db.Column('registered_on', db.DateTime)
     accessRole = db.Column(db.String(50),unique=True)
     def __repr__(self):
-        return f"userTable('{self.username}','{self.password}','{self.multiFactor}','{self.registered_on}','{self.accessRole}')"
+        return f"userTable('{self.user_id}','{self.username}','{self.password}','{self.multiFactor}','{self.registered_on}','{self.accessRole}')"
+    def get_id(self):
+        return self.username
+    def get_active(self):
+        return self.username
+    def is_active(self):
+        return self.username
+
 
 class userHistory(db.Model):
     user_id = db.Column(db.Integer(),unique=True,nullable=False,primary_key=True)
@@ -76,11 +85,15 @@ adminToAdd = userTable(username='admin',password= bcrypt.generate_password_hash(
 db.session.add(adminToAdd)
 db.session.commit()
 
+#@login_manager.user_loader
+def user_loader(user_id):
+    return userTable.query.get(user_id)
+    #return userTable.query.filter_by(username = username).user_id()
 
 # 3 forms with each function for processing (register & login & spellinput)
 @app.route('/')
 def index():
-    return "Welcome to Joe Gumke JDG597 - Spell Checker Web Application!!!"
+    return render_template('index.html')
 
 # Form for register 
 @app.route('/register', methods=['POST','GET'])
@@ -92,7 +105,7 @@ def register():
         hashed_password = bcrypt.generate_password_hash(pword).decode('utf-8')
         mfa = (registrationform.mfa.data)
         if userTable.query.filter_by(username=('%s' % uname)).first() == None:
-            userToAdd = userTable(username=uname, password=hashed_password,multiFactor=mfa,registered_on=datetime.now())
+            userToAdd = userTable(username=uname, password=hashed_password,multiFactor=mfa,registered_on=datetime.now(),accessRole='user')
             db.session.add(userToAdd)
             db.session.commit()
             print('User Successfully Registered')
@@ -126,6 +139,7 @@ def login():
             if uname == dbUserCheck.username and bcrypt.check_password_hash(dbUserCheck.password,pword) and mfa == dbUserCheck.multiFactor:
                 # assign user session
                 session['logged_in'] = True
+                login_user(uname)
                 # establish login for user and add to userhistory table
                 if userHistory.query.first() == None:
                     userID = 0;
@@ -158,10 +172,11 @@ def login():
 
 @app.route('/home', methods=['POST','GET'])
 def home():
+    # If user logged in and makes a GET request
     if session.get('logged_in') and request.method =='GET':
         error = 'Authenticated User '
         return render_template('home.html', error=error)
-    
+    # If User logged in and makes a logout request
     if session.get('logged_in') and request.method =='POST' and request.form['submit_button'] =='Log Out':
         error='Logged Out'
         session.pop('logged_in', None)
@@ -178,8 +193,17 @@ def home():
 
     else:
         error='Please Login'
-        return render_template('home.html', error=error)
+        return render_template('unauthorized.html', error=error)
         
+# Page for registered users to access their query history
+@app.route('/history', methods=['GET','POST'])
+def history():
+    if session.get('logged_in') and request.method =='GET':
+        return render_template('history.html')
+    else:
+        return render_template('unauthorized.html')
+
+
 # Page for the Admin to retrieve login history of users 
 @app.route('/login_history', methods=['GET','POST'])
 def login_history():
@@ -195,7 +219,8 @@ def login_history():
         return render_template('login_history_results.html', misspelled=queryResults)
     else:
         error='Please Login'
-        return render_template('login_history.html', form=form, error=error)
+        return render_template('unauthorized.html', form=form, error=error)
+
 
 # Text Submission && Result Retrieval 
 @app.route('/spell_check', methods=['POST','GET'])
@@ -225,7 +250,7 @@ def spell_check():
 
     if not session.get('logged_in'):
         error='Login Before Accessing Spell Checker'
-        return render_template('spell_check.html', form=form,error=error)
+        return render_template('unauthorized.html', form=form,error=error)
 
     else:
         error='spellCheck else statement'

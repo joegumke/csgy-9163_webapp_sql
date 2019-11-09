@@ -1,2 +1,5 @@
 flask-login==0.4.1
 flask-wtf==0.14.2
+wtforms==2.2.1
+flask-bcrypt==0.7.1
+flask-user==1.0.1.5
