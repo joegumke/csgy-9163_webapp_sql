@@ -84,10 +84,10 @@ adminToAdd = userTable(username='admin',password= bcrypt.generate_password_hash(
 db.session.add(adminToAdd)
 db.session.commit()
 
+# Initialize the user loader
 @login_manager.user_loader
 def user_loader(user_id):
     return userTable.query.get(user_id)
-    #return userTable.query.filter_by(username = username).user_id()
 
 # 3 forms with each function for processing (register & login & spellinput)
 @app.route('/')
@@ -107,8 +107,7 @@ def register():
             userToAdd = userTable(username=uname, password=hashed_password,multiFactor=mfa,registered_on=datetime.now(),accessRole='user')
             db.session.add(userToAdd)
             db.session.commit()
-            #uname.is_authenticated = True
-            print('User Successfully Registered')
+            #print('User Successfully Registered')
             error="success"
             return render_template('register.html', form=registrationform, error=error)
         else:
@@ -147,8 +146,6 @@ def login():
                 db.session.commit()
 
                 error="Successful Authentication"   
-                if current_user.is_authenticated:
-                    print(current_user.username)
                 return render_template('login.html', form=loginform,error=error)
 
             if pword != dbUserCheck.password:
@@ -177,13 +174,6 @@ def home():
     if session.get('logged_in') and request.method =='POST' and request.form['submit_button'] =='Log Out':
         error='Logged Out'
         session.pop('logged_in', None)
-        # establish login for user and add to userhistory table
-        #if userHistory.query.first() == None:
-        #    userID = 0;
-        #else :
-        #    userHistoryQuery = userHistory.query.first() 
-        #    userID = userHistoryQuery.user_id + 1 
-        #tempUser = current_user.username
         userLogOutToAdd = userHistory(userAction='LoggedOut', username=current_user.username,userLoggedOut=datetime.now())
         db.session.add(userLogOutToAdd)
         db.session.commit()
@@ -196,10 +186,10 @@ def home():
 # Page for registered users to access their query history
 @app.route('/history', methods=['GET','POST'])
 def history():
+    #numqueries = userSpellHistory.query.filter_by(username=('%s' % current_user.username)).max()
     if session.get('logged_in') and request.method =='GET':
-        print(current_user.username)
-        numqueries = userHistory.query.filter_by(username=('%s' % current_user.username)).all()
-        return render_template('history.html', numqueries=numqueries)
+        return render_template('history.html')
+        #return render_template('history.html', numqueries=numqueries)
     else:
         return render_template('unauthorized.html')
 
@@ -208,19 +198,22 @@ def history():
 @app.route('/login_history', methods=['GET','POST'])
 def login_history():
     form = userCheckForm(request.form)
+    try:
+        dbUserCheck = userTable.query.filter_by(username=('%s' % current_user.username)).first()
 
-    if session.get('logged_in') and request.method =='GET':
-        error = 'Authenticated User '
-        return render_template('login_history.html', form=form, error=error)
+        if session.get('logged_in') and request.method =='GET' and dbUserCheck.accessRole=='admin':
+            error = 'Authenticated User '
+            return render_template('login_history.html', form=form, error=error)
     
-    if session.get('logged_in') and request.method == 'POST' and request.form['submit_button'] == 'Check User Login History':
-        userToQuery = (form.textbox.data)
-        queryResults = userHistory.query.filter_by(username=('%s' % userToQuery)).all()
-        return render_template('login_history_results.html', misspelled=queryResults)
-    else:
-        error='Please Login'
-        return render_template('unauthorized.html', form=form, error=error)
-
+        if session.get('logged_in') and request.method == 'POST' and request.form['submit_button'] == 'Check User Login History':
+            userToQuery = (form.textbox.data)
+            queryResults = userHistory.query.filter_by(username=('%s' % userToQuery)).all()
+            return render_template('login_history_results.html', misspelled=queryResults)
+        else:
+            error='Please Login As Admin'
+            return render_template('unauthorized.html', form=form, error=error)
+    except:
+        return render_template('unauthorized.html')
 
 # Text Submission && Result Retrieval 
 @app.route('/spell_check', methods=['POST','GET'])
@@ -241,20 +234,21 @@ def spell_check():
         testsub = subprocess.Popen(["./a.out", "temp.txt", "wordlist.txt"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         output = testsub.stdout.read().strip()
         testsub.terminate()
+        userSpellHistoryToAdd = userSpellHistory(username=current_user.username,queryText=data,queryResults=output)
+        db.session.add(userSpellHistoryToAdd)
+        db.session.commit()
         for line in output.decode('utf-8').split('\n'):
             misspelled.append(line.strip())
         return render_template('results.html', misspelled=misspelled)
-        #except:
-        #    return "errors"
-        #return render_template('spell_check.html', form=form)
 
+    # Return unauthorized if user not logged in
     if not session.get('logged_in'):
         error='Login Before Accessing Spell Checker'
         return render_template('unauthorized.html', form=form,error=error)
 
     else:
         error='spellCheck else statement'
-        return render_template('spell_check.html', form=form, error=error)
+        return render_template('unauthorized.html', form=form, error=error)
 
 if __name__ == '__main__':
     app.run(debug=True)
