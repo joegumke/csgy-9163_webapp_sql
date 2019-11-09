@@ -10,7 +10,7 @@
     {{ render_field(form.pword) }}
     {{ render_field(form.mfa) }}
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-    <div id=result>{{error}}
+    <div id=success>{{error}}
 </div>
   </dl>
   <p><input type=submit value=Register>

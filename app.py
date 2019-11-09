@@ -34,19 +34,17 @@ class userTable(db.Model,UserMixin):
     password = db.Column(db.String(60),nullable=False)
     multiFactor = db.Column(db.String(11),nullable=False)
     registered_on = db.Column('registered_on', db.DateTime)
-    accessRole = db.Column(db.String(50),unique=True)
+    accessRole = db.Column(db.String(50))
     def __repr__(self):
         return f"userTable('{self.user_id}','{self.username}','{self.password}','{self.multiFactor}','{self.registered_on}','{self.accessRole}')"
     def get_id(self):
         return self.username
     def get_active(self):
         return self.username
-    def is_active(self):
-        return self.username
-
 
 class userHistory(db.Model):
-    user_id = db.Column(db.Integer(),unique=True,nullable=False,primary_key=True)
+    login_id = db.Column(db.Integer(),unique=True,nullable=False,primary_key=True,autoincrement=True)
+    user_id = db.Column(db.Integer(),db.ForeignKey("user_table.user_id"),nullable=False,unique=False)
     username = db.Column(db.String(20), unique=False,nullable=False)
     userLoggedIn = db.Column(db.DateTime)
     userLoggedOut = db.Column(db.DateTime)
@@ -55,7 +53,7 @@ class userHistory(db.Model):
         return f"userHistory('{self.username}','{self.userLoggedIn}','{self.userLoggedOut}')"
 
 class userSpellHistory(db.Model):
-    queryID= db.Column(db.Integer(),unique=True,nullable=False,primary_key=True)
+    queryID= db.Column(db.Integer(),unique=True,nullable=False,primary_key=True,autoincrement=True)
     username = db.Column(db.String(20), unique=False,nullable=False)
     queryText = db.Column(db.String(20000), unique=False,nullable=False)
     queryResults = db.Column(db.String(20000), unique=False,nullable=False)
@@ -85,7 +83,7 @@ adminToAdd = userTable(username='admin',password= bcrypt.generate_password_hash(
 db.session.add(adminToAdd)
 db.session.commit()
 
-#@login_manager.user_loader
+@login_manager.user_loader
 def user_loader(user_id):
     return userTable.query.get(user_id)
     #return userTable.query.filter_by(username = username).user_id()
@@ -108,6 +106,7 @@ def register():
             userToAdd = userTable(username=uname, password=hashed_password,multiFactor=mfa,registered_on=datetime.now(),accessRole='user')
             db.session.add(userToAdd)
             db.session.commit()
+            #uname.is_authenticated = True
             print('User Successfully Registered')
             error="success"
             return render_template('register.html', form=registrationform, error=error)
@@ -139,7 +138,8 @@ def login():
             if uname == dbUserCheck.username and bcrypt.check_password_hash(dbUserCheck.password,pword) and mfa == dbUserCheck.multiFactor:
                 # assign user session
                 session['logged_in'] = True
-                login_user(uname)
+                login_user(dbUserCheck)
+                print(current_user)
                 # establish login for user and add to userhistory table
                 if userHistory.query.first() == None:
                     userID = 0;
