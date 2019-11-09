@@ -38,19 +38,20 @@ class userTable(db.Model,UserMixin):
     def __repr__(self):
         return f"userTable('{self.user_id}','{self.username}','{self.password}','{self.multiFactor}','{self.registered_on}','{self.accessRole}')"
     def get_id(self):
-        return self.username
+        return self.user_id
     def get_active(self):
-        return self.username
+        return True
 
 class userHistory(db.Model):
     login_id = db.Column(db.Integer(),unique=True,nullable=False,primary_key=True,autoincrement=True)
-    user_id = db.Column(db.Integer(),db.ForeignKey("user_table.user_id"),nullable=False,unique=False)
+    user_id = db.Column(db.Integer(),db.ForeignKey("user_table.user_id"),unique=False)
     username = db.Column(db.String(20), unique=False,nullable=False)
+    userAction = db.Column(db.String(20))
     userLoggedIn = db.Column(db.DateTime)
     userLoggedOut = db.Column(db.DateTime)
 
     def __repr__(self):
-        return f"userHistory('{self.username}','{self.userLoggedIn}','{self.userLoggedOut}')"
+        return f"userHistory('{self.login_id}','{self.user_id}','{self.userAction}','{self.username}','{self.userLoggedIn}','{self.userLoggedOut}')"
 
 class userSpellHistory(db.Model):
     queryID= db.Column(db.Integer(),unique=True,nullable=False,primary_key=True,autoincrement=True)
@@ -139,19 +140,15 @@ def login():
                 # assign user session
                 session['logged_in'] = True
                 login_user(dbUserCheck)
-                print(current_user)
+
                 # establish login for user and add to userhistory table
-                if userHistory.query.first() == None:
-                    userID = 0;
-                else :
-                    userHistoryQuery = userHistory.query.first() 
-                    userID = userHistoryQuery.user_id + 1 
-                userLoginToAdd = userHistory(user_id=userID, username=uname,userLoggedIn=datetime.now())
+                userLoginToAdd = userHistory(userAction='LoggedIn', username=uname,userLoggedIn=datetime.now())
                 db.session.add(userLoginToAdd)
                 db.session.commit()
+
                 error="Successful Authentication"   
-                #if current_user.is_authenticated:
-                #    print(current_user.username)
+                if current_user.is_authenticated:
+                    print(current_user.username)
                 return render_template('login.html', form=loginform,error=error)
 
             if pword != dbUserCheck.password:
@@ -186,9 +183,10 @@ def home():
         #else :
         #    userHistoryQuery = userHistory.query.first() 
         #    userID = userHistoryQuery.user_id + 1 
-        #userLoginToAdd = userHistory(user_id=userID, username=current_user.username,userLoggedIn=datetime.now())
-        #db.session.add(userLoginToAdd)
-        #db.session.commit()
+        #tempUser = current_user.username
+        userLogOutToAdd = userHistory(userAction='LoggedOut', username=current_user.username,userLoggedOut=datetime.now())
+        db.session.add(userLogOutToAdd)
+        db.session.commit()
         return render_template('home.html', error=error)
 
     else:
@@ -199,7 +197,9 @@ def home():
 @app.route('/history', methods=['GET','POST'])
 def history():
     if session.get('logged_in') and request.method =='GET':
-        return render_template('history.html')
+        print(current_user.username)
+        numqueries = userHistory.query.filter_by(username=('%s' % current_user.username)).all()
+        return render_template('history.html', numqueries=numqueries)
     else:
         return render_template('unauthorized.html')
 

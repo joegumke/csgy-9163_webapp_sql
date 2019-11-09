@@ -1,12 +1,13 @@
 {% from "_formhelpers.html" import render_field %}
-<p>LOGIN HISTORY PAGE</p>
+<p>REGISTERED USER HISTORY</p>
 <a href="http://localhost:5000/home">HOME</a> 
 <a href="http://localhost:5000/login">LOGIN</a> 
 <a href="http://localhost:5000/spell_check">SPELL_CHECK</a>
 <a href="http://localhost:5000/register">REGISTER</a>
+<a href="http://localhost:5000/history">USER HISTORY</a>
 <form method=post>
   <dl>
-<div id=numqueries></div>
+<div id=numqueries>{{numqueries}}</div>
 <div id=result>{{error}}
   </dl>
     <p><input type=submit name='submit_button' value='Log Out'>
