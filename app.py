@@ -186,10 +186,14 @@ def home():
 # Page for registered users to access their query history
 @app.route('/history', methods=['GET','POST'])
 def history():
-    #numqueries = userSpellHistory.query.filter_by(username=('%s' % current_user.username)).max()
     if session.get('logged_in') and request.method =='GET':
-        return render_template('history.html')
-        #return render_template('history.html', numqueries=numqueries)
+        # Wrap try / except around this statement in case there are no results (NONE)
+        try:
+            numqueries = userSpellHistory.query.filter_by(username=('%s' % current_user.username)).order_by(userSpellHistory.queryID.desc()).first()
+            numqueries = numqueries.queryID
+        except AttributeError:
+            numqueries = 0
+        return render_template('history.html', numqueries=numqueries)
     else:
         return render_template('unauthorized.html')
 
@@ -234,9 +238,11 @@ def spell_check():
         testsub = subprocess.Popen(["./a.out", "temp.txt", "wordlist.txt"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         output = testsub.stdout.read().strip()
         testsub.terminate()
+        # add misspelled words to userspellhistory DB
         userSpellHistoryToAdd = userSpellHistory(username=current_user.username,queryText=data,queryResults=output)
         db.session.add(userSpellHistoryToAdd)
         db.session.commit()
+        # iterate through results and return output
         for line in output.decode('utf-8').split('\n'):
             misspelled.append(line.strip())
         return render_template('results.html', misspelled=misspelled)
