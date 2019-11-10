@@ -9,9 +9,10 @@
   <dl>
 <div id=numqueries>{{numqueries}}</div>
 <div id=result>{{error}}
+<div id=query#></div>
   </dl>
-{%for query in queries %}
-  <li><a href"/history/query{{query.id}}" id="query{{query.id}}">query</a></li>
+{%for query in allqueries %}
+  <li><a href"/history/query{{query}}" id="query{{query}}">Query #</a></li>
 {%endfor %}
     <p><input type=submit name='submit_button' value='Log Out'>
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>

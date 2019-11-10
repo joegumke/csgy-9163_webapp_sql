@@ -174,10 +174,13 @@ def home():
     if session.get('logged_in') and request.method =='POST' and request.form['submit_button'] =='Log Out':
         error='Logged Out'
         session.pop('logged_in', None)
-        userLogOutToAdd = userHistory(userAction='LoggedOut', username=current_user.username,userLoggedOut=datetime.now())
-        db.session.add(userLogOutToAdd)
-        db.session.commit()
-        return render_template('home.html', error=error)
+        try:
+            userLogOutToAdd = userHistory(userAction='LoggedOut', username=current_user.username,userLoggedOut=datetime.now())
+            db.session.add(userLogOutToAdd)
+            db.session.commit()
+            return render_template('home.html', error=error)
+        except AttributeError:
+            return render_template('unauthorized.html', error=error)
 
     else:
         error='Please Login'
@@ -190,10 +193,13 @@ def history():
         # Wrap try / except around this statement in case there are no results (NONE)
         try:
             numqueries = userSpellHistory.query.filter_by(username=('%s' % current_user.username)).order_by(userSpellHistory.queryID.desc()).first()
-            numqueries = numqueries.queryID
+            allqueries =  userSpellHistory.query.filter_by(username=('%s' % current_user.username)).all()
+            numqueriesCount = numqueries.queryID
+            print(allqueries)
         except AttributeError:
-            numqueries = 0
-        return render_template('history.html', numqueries=numqueries)
+            numqueriesCount = 0
+            allqueries = ''
+        return render_template('history.html', numqueries=numqueriesCount,allqueries=allqueries)
     else:
         return render_template('unauthorized.html')
 
@@ -230,7 +236,7 @@ def spell_check():
         error='inputtext'
         return render_template('spell_check.html', form=form, error=error)
 
-    if session.get('logged_in') and request.method == 'POST' and request.form['submit_button'] == 'Check Spelling':
+    if session.get('logged_in') and request.method == 'POST' and request.form['submit_button'] == 'Check Spelling' :
         data = (form.textbox.data)
         tempFile = open("temp.txt","w")
         tempFile.write(data)
