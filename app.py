@@ -195,14 +195,26 @@ def history():
             numqueries = userSpellHistory.query.filter_by(username=('%s' % current_user.username)).order_by(userSpellHistory.queryID.desc()).first()
             allqueries =  userSpellHistory.query.filter_by(username=('%s' % current_user.username)).all()
             numqueriesCount = numqueries.queryID
-            print(allqueries)
         except AttributeError:
+            numqueries = ''
             numqueriesCount = 0
             allqueries = ''
         return render_template('history.html', numqueries=numqueriesCount,allqueries=allqueries)
     else:
         return render_template('unauthorized.html')
 
+@app.route("/history/<query>")
+def queryPage(query):
+    if request.method == 'GET':
+        try:
+            query = query.replace('query','')
+            history = userSpellHistory.query.filter_by(queryID=('%s' % query)).first()
+            queryID = history.queryID
+            submitText = history.queryText
+            returnedText = history.queryResults
+        except AttributeError:
+            return render_template('unauthorized.html')
+        return render_template('queryIDresults.html', queryID=queryID, submitText=submitText,results=returnedText)
 
 # Page for the Admin to retrieve login history of users 
 @app.route('/login_history', methods=['GET','POST'])
@@ -245,7 +257,7 @@ def spell_check():
         output = testsub.stdout.read().strip()
         testsub.terminate()
         # add misspelled words to userspellhistory DB
-        userSpellHistoryToAdd = userSpellHistory(username=current_user.username,queryText=data,queryResults=output)
+        userSpellHistoryToAdd = userSpellHistory(username=current_user.username,queryText=data,queryResults=output.decode('utf-8'))
         db.session.add(userSpellHistoryToAdd)
         db.session.commit()
         # iterate through results and return output

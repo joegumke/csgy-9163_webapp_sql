@@ -4,15 +4,17 @@
 <a href="http://localhost:5000/login">LOGIN</a> 
 <a href="http://localhost:5000/spell_check">SPELL_CHECK</a>
 <a href="http://localhost:5000/register">REGISTER</a>
-<a href="http://localhost:5000/history">USER HISTORY</a>
+<a href="http://localhost:5000/history">USER QUERY HISTORY</a>
+<a href="http://localhost:5000/login_history">USER LOGIN HISTORY</a>
+
 <form method=post>
   <dl>
-<div id=numqueries>{{numqueries}}</div>
+Total Queries Made By User: <div id=numqueries>{{numqueries}}</div>
 <div id=result>{{error}}
 <div id=query#></div>
   </dl>
 {%for query in allqueries %}
-  <li><a href"/history/query{{query}}" id="query{{query}}">Query #</a></li>
+  <li><a  id="query{{query}}" href="/history/query{{query.queryID}}">Query #{{query.queryID}}</a></li>
 {%endfor %}
     <p><input type=submit name='submit_button' value='Log Out'>
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
