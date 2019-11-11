@@ -190,6 +190,26 @@ def home():
 # Page for registered users to access their query history
 @app.route('/history', methods=['GET','POST'])
 def history():
+    form = wordForm(request.form)
+    if session.get('logged_in') and request.method =='POST':
+        try:
+            userQuery = form.textbox.data
+            print(userQuery)
+            dbUserCheck = userTable.query.filter_by(username=('%s' % current_user.username)).first()
+            if dbUserCheck.accessRole=='admin':
+                try:
+                    numqueries = userSpellHistory.query.filter_by(username=('%s' % userQuery)).order_by(userSpellHistory.queryID.desc()).first()
+                    allqueries =  userSpellHistory.query.filter_by(username=('%s' % userQuery)).all()
+                    numqueriesCount = numqueries.queryID
+                except AttributeError:
+                    numqueries = ''
+                    numqueriesCount = 0
+                    allqueries = ''
+                return render_template('history.html', numqueries=numqueriesCount,allqueries=allqueries,form=form)
+        except AttributeError:
+            return render_template('unauthorized.html')
+
+
     if session.get('logged_in') and request.method =='GET':
         # Wrap try / except around this statement in case there are no results (NONE)
         try:
@@ -200,7 +220,7 @@ def history():
             numqueries = ''
             numqueriesCount = 0
             allqueries = ''
-        return render_template('history.html', numqueries=numqueriesCount,allqueries=allqueries)
+        return render_template('history.html', numqueries=numqueriesCount,allqueries=allqueries,form=form)
     else:
         return render_template('unauthorized.html')
 

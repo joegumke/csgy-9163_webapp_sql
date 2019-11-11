@@ -7,10 +7,13 @@
 <a href="http://localhost:5000/history">USER QUERY HISTORY</a>
 <a href="http://localhost:5000/login_history">USER LOGIN HISTORY</a>
 
-<form method=post>
+<form method=post action="">
   <dl>
 <div id=numqueries> Total Queries Made By User: {{numqueries}}</div>
 <div id=result>{{error}}
+
+<p><input type=submit name='submit_button' value='Check Query History For User'>
+{{ form.textbox }}
 <div id=query#></div>
   </dl>
 {%for query in allqueries %}
