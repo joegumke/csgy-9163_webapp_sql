@@ -79,6 +79,7 @@ class userCheckForm(Form):
 db.drop_all()
 db.create_all()
 
+
 # Add in the Administrator User
 adminToAdd = userTable(username='admin',password= bcrypt.generate_password_hash('Administrator@1').decode('utf-8'),multiFactor='12345678901',accessRole='admin')
 db.session.add(adminToAdd)
@@ -243,35 +244,32 @@ def login_history():
 def spell_check():
     form = wordForm(request.form)
     misspelled =[]
+    try:
+        if session.get('logged_in') and request.method == 'GET':
+            error='inputtext'
+            return render_template('spell_check.html', form=form, error=error)
 
-    if session.get('logged_in') and request.method == 'GET':
-        error='inputtext'
-        return render_template('spell_check.html', form=form, error=error)
-
-    if session.get('logged_in') and request.method == 'POST' and request.form['submit_button'] == 'Check Spelling' :
-        data = (form.textbox.data)
-        tempFile = open("temp.txt","w")
-        tempFile.write(data)
-        tempFile.close()
-        testsub = subprocess.Popen(["./a.out", "temp.txt", "wordlist.txt"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        output = testsub.stdout.read().strip()
-        testsub.terminate()
-        # add misspelled words to userspellhistory DB
-        userSpellHistoryToAdd = userSpellHistory(username=current_user.username,queryText=data,queryResults=output.decode('utf-8'))
-        db.session.add(userSpellHistoryToAdd)
-        db.session.commit()
-        # iterate through results and return output
-        for line in output.decode('utf-8').split('\n'):
-            misspelled.append(line.strip())
-        return render_template('results.html', misspelled=misspelled)
-
-    # Return unauthorized if user not logged in
-    if not session.get('logged_in'):
-        error='Login Before Accessing Spell Checker'
-        return render_template('unauthorized.html', form=form,error=error)
-
+        if session.get('logged_in') and request.method == 'POST' and request.form['submit_button'] == 'Check Spelling' :
+            data = (form.textbox.data)
+            tempFile = open("temp.txt","w")
+            tempFile.write(data)
+            tempFile.close()
+            testsub = subprocess.Popen(["./a.out", "temp.txt", "wordlist.txt"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            output = testsub.stdout.read().strip()
+            testsub.terminate()
+            # add misspelled words to userspellhistory DB
+            userSpellHistoryToAdd = userSpellHistory(username=current_user.username,queryText=data,queryResults=output.decode('utf-8'))
+            db.session.add(userSpellHistoryToAdd)
+            db.session.commit()
+            # iterate through results and return output
+            for line in output.decode('utf-8').split('\n'):
+                misspelled.append(line.strip())
+            return render_template('results.html', misspelled=misspelled)
+    except AttributeError:
+        error="Please Login before accessing..." 
+        return render_template('unauthorized.html', form=form, error=error)
     else:
-        error='spellCheck else statement'
+        error='Login Before Accessing Spell Checker'
         return render_template('unauthorized.html', form=form, error=error)
 
 if __name__ == '__main__':
