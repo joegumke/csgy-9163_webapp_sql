@@ -6,6 +6,7 @@
 <a href="http://localhost:5000/history">USER QUERY HISTORY</a>
 <a href="http://localhost:5000/login_history">USER LOGIN HISTORY</a>
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-<p> Query ID: {{ queryID }} </p>
-<p> Requested Text: {{ submitText }} </p>
-<p> Returned Text : {{ results }} </p>
+<p> Query ID: <div id=queryid>{{ queryID }} </p>
+<p> Username: <div id=username>{{username }} </p>
+<p> Requested Text: <div id=querytext>{{ submitText }} </p>
+<p> Returned Text : <div id=queryresults>{{ results }} </p>
