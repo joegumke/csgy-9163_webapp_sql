@@ -14,7 +14,7 @@
 <div id=query#></div>
   </dl>
 {%for query in allqueries %}
-  <li><a  id="query{{query}}" href="/history/query{{query.queryID}}">Query #{{query.queryID}}</a></li>
+  <li><a  id="query{{query.queryID}}" href="/history/query{{query.queryID}}">Query #{{query.queryID}}</a></li>
 {%endfor %}
     <p><input type=submit name='submit_button' value='Log Out'>
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
